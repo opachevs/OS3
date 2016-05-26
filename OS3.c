@@ -25,6 +25,7 @@
 
 typedef struct square {
 	int flag;
+	int edge;
 	pthread_mutex_t lock;
 	struct square *next;
 	struct square *prev;
@@ -45,139 +46,136 @@ struct carParam arr4[CARS];
 
 void* car(void *arg) {
 	struct carParam *arr;
-	int x, y, x1, y1, tmp = 1;
+	struct square *p;
+	int x, y, tmp =1;
 
 	arr = (struct carParam *) arg;
-
 	switch (arr->generator) {
 	case 1:
-		y = 0;
-		y1 = 1;
-		x = N - 1;
-		x1 = N - 1;
+		p = &(trafficCircle[0][N - 1]);
 		break;
 	case 2:
-		y = 0;
-		y1 = 0;
-		x = 0;
-		x1 = 1;
+		p = &(trafficCircle[0][0]);
 		break;
 	case 3:
-		x = 0;
-		x1 = 0;
-		y = N - 1;
-		y1 = N - 2;
+		p = &(trafficCircle[N - 1][0]);
 		break;
 	case 4:
-		x = N - 1;
-		x1 = N - 2;
-		y = N - 1;
-		y1 = N - 1;
+		p = &(trafficCircle[N - 1][N - 1]);
 		break;
 	}
 
 	while (run) {
 
 		if (tmp) {
-			pthread_mutex_lock(&(trafficCircle[x1][y1].lock));
-			pthread_mutex_lock(&(trafficCircle[x][y].lock));
-			if (trafficCircle[x][y].flag == 0
-					&& trafficCircle[x1][y1].flag == 0) {
-				trafficCircle[x][y].flag = 1;
+			pthread_mutex_lock(&(p->prev->lock));
+			pthread_mutex_lock(&(p->lock));
+			if (p->flag == 0 && p->prev->flag == 0) {
+				p->flag = 1;
 				tmp = 0;
 			}
-			pthread_mutex_unlock(&(trafficCircle[x1][y1].lock));
-			pthread_mutex_unlock(&(trafficCircle[x][y].lock));
-		if(flag==0)
+			pthread_mutex_unlock(&(p->lock));
+			pthread_mutex_unlock(&(p->prev->lock));
 
-	} else {
+		} else {
+
+
+		}
 
 	}
-
-}
-
+	return NULL;
 }
 
 void* Generator(void *arg) {
-pthread_t cars[CARS];
-struct carParam *arr;
-int counter = 0;
-int time, err, i;
+	pthread_t cars[CARS];
+	struct carParam *arr;
+	int counter = 0;
+	int time, err, i;
 
-arr = (struct carParam *) arg;
+	arr = (struct carParam *) arg;
 
-while (i < CARS) {
-	arr[i++].license = -1;
-	arr[i++].generator = *((int*) arg);
-}
-
-while (run) {
-	time = (rand() % (MAX_INTER_ARRIVAL_IN_NS - MIN_INTER_ARRIVAL_IN_NS))
-			+ MIN_INTER_ARRIVAL_IN_NS;
-	usleep(time / 1000);
-
-	arr[counter].license = counter;
-	err = pthread_create(&(cars[counter]), NULL, &car, &(arr[counter]));
-	if (err != 0)
-		printf("\ncan't create thread :[%s]\n", strerror(err));
-
-	for (i = 0; i < CARS; i++) {
-		if (arr[i].license == -1)
-			counter = i;
+	while (i < CARS) {
+		arr[i++].license = -1;
+		arr[i++].generator = *((int*) arg);
 	}
 
-}
+	while (run) {
+		time = (rand() % (MAX_INTER_ARRIVAL_IN_NS - MIN_INTER_ARRIVAL_IN_NS))
+				+ MIN_INTER_ARRIVAL_IN_NS;
+		usleep(time / 1000);
 
-return NULL;
+		arr[counter].license = counter;
+		err = pthread_create(&(cars[counter]), NULL, &car, &(arr[counter]));
+		if (err != 0)
+			printf("\ncan't create thread :[%s]\n", strerror(err));
+
+		for (i = 0; i < CARS; i++) {
+			if (arr[i].license == -1)
+				counter = i;
+		}
+
+	}
+
+	return NULL;
 }
 
 int main(void) {
-int i = 0, j = 0;
+	int i = 0, j = 0, tmp = 0;
+	struct square *p;
 
-for (i = 0; i < N; i++) {
-	for (j = 0; j < N; j++) {
-		if (pthread_mutex_init(&(trafficCircle[i][j].lock), NULL) != 0) {
-			printf("\n mutex init failed\n");
-			return 1;
-		}
-		trafficCircle[i][j].flag = 0;
-		switch (i) {
-		case 0:
-			if (j != 0)
-				trafficCircle[i][j].next = &trafficCircle[i][j-1];
-			else{
-				trafficCircle[i][j].next = &trafficCircle[i+1][j];
-				trafficCircle[i][j].prev = &trafficCircle[i][j+1];
+	for (i = 0; i < N; i++) {
+		for (j = 0; j < N; j++) {
+			if (pthread_mutex_init(&(trafficCircle[i][j].lock), NULL) != 0) {
+				printf("\n mutex init failed\n");
+				return 1;
 			}
-			continue;
-		case N - 1:
-			if (j != N - 1)
-				trafficCircle[i][j].next = &trafficCircle[i][j+1];
-			else
-				trafficCircle[i][j].next = &trafficCircle[i-1][j];
-				trafficCircle[i][j].prev = &trafficCircle[i][j-1];
-			continue;
+			trafficCircle[i][j].flag = tmp++;
+			switch (i) {
+			case 0:
+				if (j == 0) {
+					trafficCircle[i][j].next = &trafficCircle[i + 1][j];
+					trafficCircle[i][j].prev = &trafficCircle[i][j + 1];
+				} else if (j == N - 1) {
+					trafficCircle[i][j].next = &trafficCircle[i][j - 1];
+					trafficCircle[i][j].prev = &trafficCircle[i + 1][j];
+				} else {
+					trafficCircle[i][j].next = &trafficCircle[i][j - 1];
+					trafficCircle[i][j].prev = &trafficCircle[i][j + 1];
+				}
+				continue;
+			case N - 1:
+				if (j == N - 1) {
+					trafficCircle[i][j].next = &trafficCircle[i - 1][j];
+					trafficCircle[i][j].prev = &trafficCircle[i][j - 1];
+				} else if (j == 0) {
+					trafficCircle[i][j].next = &trafficCircle[i][j + 1];
+					trafficCircle[i][j].prev = &trafficCircle[i - 1][j];
+				} else {
+					trafficCircle[i][j].next = &trafficCircle[i][j + 1];
+					trafficCircle[i][j].prev = &trafficCircle[i][j - 1];
+				}
+				continue;
+			}
+			switch (j) {
+			case 0:
+				trafficCircle[i][j].next = &trafficCircle[i + 1][j];
+				trafficCircle[i][j].prev = &trafficCircle[i - 1][j];
+				continue;
+			case N - 1:
+				trafficCircle[i][j].next = &trafficCircle[i - 1][j];
+				trafficCircle[i][j].prev = &trafficCircle[i + 1][j];
+				continue;
+			}
 		}
-		switch (j) {
-		case 0:
-			if (i != N - 1)
-				trafficCircle[i][j].next = &trafficCircle[i+1][j];
-			else
-				trafficCircle[i][j].next = &trafficCircle[i][j+1];
-				trafficCircle[i][j].prev = &trafficCircle[i-1][j];
-			continue;
-		case N - 1:
-			if (i!= 0)
-				trafficCircle[i][j].next = &trafficCircle[i-1][j];
-			else
-				trafficCircle[i][j].next = &trafficCircle[i][j-1];
-				trafficCircle[i][j].prev = &trafficCircle[i+1][j];
-			continue;
-		}
-
+	}
+	p = &(trafficCircle[0][0]);
+	for (i = 0; i < 30; i++) {
+		if (p->prev != NULL)
+			printf("%d   %d\n", p->flag, p->prev->flag);
+		else
+			printf("%d\n", p->flag);
+		p = p->next;
 	}
 
-}
-
-return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }
